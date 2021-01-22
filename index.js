@@ -170,30 +170,56 @@ module.exports = class UnifiEvents extends EventEmitter {
     }
 
     get(path) {
+        const cookies = this.jar.getCookieString(this.controller.href);
         return this._ensureLoggedIn()
             .then(() => {
-                return this.rp.get(this._url(path));
+                return this.rp.get(this._url(path, {
+                    headers: {
+                        'User-Agent': this.userAgent,
+                        Cookie: cookies
+                    }
+                }));
             });
     }
 
     del(path) {
+        const cookies = this.jar.getCookieString(this.controller.href);
         return this._ensureLoggedIn()
             .then(() => {
-                return this.rp.del(this._url(path));
+                return this.rp.del(this._url(path, {
+                    headers: {
+                        'User-Agent': this.userAgent,
+                        Cookie: cookies
+                    }
+                }));
             });
     }
 
     post(path, body) {
+        const cookies = this.jar.getCookieString(this.controller.href);
         return this._ensureLoggedIn()
             .then(() => {
-                return this.rp.post(this._url(path), {body});
+                return this.rp.post(this._url(path), {
+                    body: body,
+                    headers: {
+                        'User-Agent': this.userAgent,
+                        Cookie: cookies
+                    }
+                });
             });
     }
 
     put(path, body) {
+        const cookies = this.jar.getCookieString(this.controller.href);
         return this._ensureLoggedIn()
             .then(() => {
-                return this.rp.put(this._url(path), {body});
+                return this.rp.put(this._url(path), {
+                    body: body,
+                    headers: {
+                        'User-Agent': this.userAgent,
+                        Cookie: cookies
+                    }
+                });
             });
     }
 };
