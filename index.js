@@ -48,7 +48,11 @@ module.exports = class UnifiEvents extends EventEmitter {
 
     close() {
         this.isClosed = true;
-        this.ws.terminate();
+        if (typeof this.ws !== "undefined")
+        {
+            this.ws.terminate();
+        }
+
     }
 
     _login(reconnect) {
