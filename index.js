@@ -50,7 +50,7 @@ module.exports = class UnifiEvents extends EventEmitter {
         this.isClosed = true;
         if (typeof this.ws !== "undefined")
         {
-            this.ws.terminate();
+            this.ws.close();
         }
 
     }
