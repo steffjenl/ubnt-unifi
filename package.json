@@ -3,19 +3,11 @@
   "description": "listen for events from and call methods on the UniFi API (Ubiquiti Wifi).",
   "version": "1.0.2",
   "main": "index.js",
-  "devDependencies": {
-    "camo-purge": "latest",
-    "xo": "latest"
-  },
   "engines": {
     "node": ">=6.0.0"
   },
-  "scripts": {
-    "test": "camo-purge ; xo"
-  },
   "dependencies": {
     "eventemitter2": "^5.0.1",
-    "node-fetch": "^2.6.1",
     "request": "^2.83.0",
     "request-promise": "^4.2.2",
     "ws": "^7.4.3"
