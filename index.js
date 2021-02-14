@@ -91,7 +91,7 @@ module.exports = class UnifiEvents extends EventEmitter {
         });
 
         const pingpong = setInterval(() => {
-            if (this.ws.readyState === WebSocket.CLOSED) {
+            if (this.ws.readyState === WebSocket.OPEN) {
                 this.ws.send('ping');
             }
         }, 15000);
