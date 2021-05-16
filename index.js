@@ -2,6 +2,7 @@ const url = require('url');
 const EventEmitter = require('eventemitter2').EventEmitter2;
 const WebSocket = require('ws');
 const rp = require('request-promise');
+const https = require('https');
 
 module.exports = class UnifiEvents extends EventEmitter {
 
@@ -20,6 +21,7 @@ module.exports = class UnifiEvents extends EventEmitter {
 
 
         this.userAgent = 'node.js ubnt-unifi';
+        this.csrfToken = '';
         this.controller = url.parse('https://' + this.opts.host + ':' + this.opts.port);
 
         this.jar = rp.jar();
@@ -39,11 +41,18 @@ module.exports = class UnifiEvents extends EventEmitter {
     }
 
     connect(reconnect) {
+        this.emit('ctrl.function.connect');
         this.isClosed = false;
-        return this._login(reconnect)
-            .then(() => {
-                return this._listen();
-            });
+        const that = this;
+        this._getCSRFToken().then(function( response ) {
+            return that._login(reconnect)
+                .then(() => {
+                    that.emit('ctrl.function.connect.connected');
+                    return that._listen();
+                });
+        }).catch((error) => {
+            this.emit('ctrl.nocsrftoken.' + error);
+        });
     }
 
     close() {
@@ -55,7 +64,63 @@ module.exports = class UnifiEvents extends EventEmitter {
 
     }
 
+    _getCSRFToken() {
+        this.emit('ctrl.function._getCSRFToken');
+        return new Promise((resolve, reject) => {
+            if (!this.opts.unifios || this.csrfToken !== '') {
+                return resolve(true);
+            }
+
+            this.emit('ctrl.csrftoken');
+
+            const options = {
+                method: 'GET',
+                hostname: this.opts.host,
+                port: this.opts.port,
+                path: '/',
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                    Accept: '*/*',
+                    'x-csrf-token': 'undefined'
+                },
+                maxRedirects: 20,
+                rejectUnauthorized: false,
+                timeout: 2000,
+                keepAlive: true,
+            };
+
+            const req = https.request(options, res => {
+                const body = [];
+
+                res.on('data', chunk => body.push(chunk));
+                res.on('end', () => {
+                    // Obtain authorization header
+                    res.rawHeaders.forEach((item, index) => {
+                        // X-CSRF-Token
+                        if (item.toLowerCase() === 'x-csrf-token') {
+                            this.csrfToken = res.rawHeaders[index + 1];
+                        }
+                    });
+
+                    if (this.csrfToken === '') {
+                        reject(new Error('Invalid x-csrf-token header.'));
+                        return;
+                    }
+
+                    // Connected
+                    return resolve('We got it!');
+                });
+            });
+
+            req.on('error', error => {
+                return reject(error);
+            });
+            req.end();
+        });
+    }
+
     _login(reconnect) {
+        this.emit('ctrl.function._login');
         let endpointUrl = `${this.controller.href}api/login`;
         if (this.opts.unifios) {
             // unifios using one authorisation endpoint for protect and network.
@@ -68,7 +133,7 @@ module.exports = class UnifiEvents extends EventEmitter {
                 username: this.opts.username,
                 password: this.opts.password
             }
-        }).catch(() => {
+        }).catch((error) => {
             if (!reconnect) {
                 this._reconnect();
             }
@@ -119,8 +184,8 @@ module.exports = class UnifiEvents extends EventEmitter {
 
         this.ws.on('close', () => {
             this.emit('ctrl.close');
-            clearInterval(pingpong);
-            this._reconnect();
+            //clearInterval(pingpong);
+            //this._reconnect();
         });
 
         this.ws.on('error', err => {
@@ -153,10 +218,18 @@ module.exports = class UnifiEvents extends EventEmitter {
     }
 
     _ensureLoggedIn() {
-        return this.rp.get(`${this.controller.href}api/self`)
-            .catch(() => {
-                return this._login();
-            });
+        if (this.opts.unifios) {
+            return this.rp.get(`${this.controller.href}api/users/self`)
+                .catch(() => {
+                    return this._login();
+                });
+        }
+        else {
+            return this.rp.get(`${this.controller.href}api/self`)
+                .catch(() => {
+                    return this._login();
+                });
+        }
     }
 
     _url(path) {
@@ -182,6 +255,7 @@ module.exports = class UnifiEvents extends EventEmitter {
                 return this.rp.get(this._url(path, {
                     headers: {
                         'User-Agent': this.userAgent,
+                        'x-csrf-token': this.csrfToken,
                         Cookie: cookies
                     }
                 }));
@@ -195,6 +269,7 @@ module.exports = class UnifiEvents extends EventEmitter {
                 return this.rp.del(this._url(path, {
                     headers: {
                         'User-Agent': this.userAgent,
+                        'x-csrf-token': this.csrfToken,
                         Cookie: cookies
                     }
                 }));
@@ -209,6 +284,7 @@ module.exports = class UnifiEvents extends EventEmitter {
                     body: body,
                     headers: {
                         'User-Agent': this.userAgent,
+                        'x-csrf-token': this.csrfToken,
                         Cookie: cookies
                     }
                 });
@@ -223,6 +299,7 @@ module.exports = class UnifiEvents extends EventEmitter {
                     body: body,
                     headers: {
                         'User-Agent': this.userAgent,
+                        'x-csrf-token': this.csrfToken,
                         Cookie: cookies
                     }
                 });
